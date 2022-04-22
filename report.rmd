@@ -1,6 +1,6 @@
 ---
-title: "Besuchsmuster in Januar 2022"
-date : "`r format(Sys.time(), '%d.%m.%Y')`"
+title: "Besuchsmuster im Januar 2022"
+date : "`r format(Sys.time(), '%d.%m.%Y')` - [Github](https://github.com/chmedia-data/ad-hoc-22-04_visit-patterns)"
 author: '[Adrian Oesch](mailto:adrian.oesch@chmedia.ch)'
 knit: (function(inputFile,encoding){
   rmarkdown::render(
@@ -32,7 +32,9 @@ knitr::opts_chunk$set("warning"=F)
 runQueries = F
 ```
 
-# Tagesmuster
+Für die folgenden Analysen wurden lediglich die Platformen Web und News-App berücksichtigt.
+
+# Tagesverlauf
 ## Per Gerät- und Tagestyp
 ```{r}
 x = getQueryData(sqlString="
@@ -356,5 +358,8 @@ ggplotly(
 )
 ```
 
-# Referral
+# Quellen
+
+Die folgenden Analysen beruhen auf einer Klassifikation der sog. "Referrers" lediglich im Web. 
+
 WIP

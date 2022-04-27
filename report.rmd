@@ -27,8 +27,6 @@ source('utils.r')
 formatTime = function(var) {
   return (as.POSIXct(paste0("1900-01-01 ",var,":00")))
 }
-knitr::opts_chunk$set("message"=F)
-knitr::opts_chunk$set("warning"=F)
 runQueries = F
 ```
 
@@ -81,7 +79,7 @@ x = getQueryData(sqlString="
 ",force=runQueries)
 
 x$time = formatTime(x$time_bin)
-x2 = x %>% group_by(time,day_type,device_type) %>% summarise(
+x2 = x %>% group_by(time,day_type,subscriber_status) %>% summarise(
   n_visits = sum(n_visits)
 )
 
@@ -89,10 +87,10 @@ ggplotly(
   ggplot(x2,aes(
       x=time,
       y=n_visits,
-      color=device_type,
+      color=day_type,
       group=1))+
     geom_line(stat="identity")+
-    facet_wrap(.~day_type,scales = "free_y")+theme(
+    facet_wrap(.~subscriber_status,scales = "free_y")+theme(
       axis.text.x=element_text(angle=90)
     )
 )
@@ -102,7 +100,7 @@ ggplotly(
 ## Per Abo-Status und Gerättyp
 ```{r}
 x$time = formatTime(x$time_bin)
-x2 = x %>% group_by(time,day_type,device_type) %>% summarise(
+x2 = x %>% group_by(time,subscriber_status,device_type) %>% summarise(
   n_visits = sum(n_visits)
 )
 
@@ -114,6 +112,40 @@ ggplotly(
       group=1))+
     geom_line(stat="identity")+
     scale_x_datetime(date_labels="%H:%M")+
+    facet_wrap(.~subscriber_status,scales = "free_y")+theme(
+      axis.text.x=element_text(angle=90)
+    )
+)
+```
+
+## Per Tagestyp und Platform
+
+Nur für Abonnierende
+
+```{r}
+x = getQueryData(sqlString="
+  select
+      time_bin,
+      if( extract(dayofweek from day_dt) in (7,1),'weekend','weekday') as day_type,
+      device_type || if(is_web,'-web','-app') as device_app_type,
+      count(*) as n_visits
+  from chmedia.subs_session_first_page_jan22
+  where subscriber_status = 'subs'
+  group by 1,2,3
+",force=runQueries)
+
+x$time = formatTime(x$time_bin)
+x = x[x$device_app_type!="desktop-app",]
+x$device_platform = x$device_app_type
+
+ggplotly(
+  ggplot(x,aes(
+      x=time,
+      y=n_visits,
+      color=device_platform,
+      group=1))+
+    geom_line(stat="identity")+
+    scale_x_datetime(date_labels="%H:%M")+
     facet_wrap(.~day_type,scales = "free_y")+theme(
       axis.text.x=element_text(angle=90)
     )
@@ -122,6 +154,17 @@ ggplotly(
 
 ## Per Abo-Status und Tagestyp
 ```{r}
+x = getQueryData(sqlString="
+  select
+      time_bin,
+      if( extract(dayofweek from day_dt) in (7,1),'weekend','weekday') as day_type,
+      subscriber_status,
+      device_type,
+      count(*) as n_visits
+  from chmedia.subs_session_first_page_jan22
+  group by 1,2,3,4
+",force=runQueries)
+x$time = formatTime(x$time_bin)
 
 x2 = x %>% group_by(time,day_type,subscriber_status) %>% summarise(
   n_visits = sum(n_visits)
@@ -360,6 +403,98 @@ ggplotly(
 
 # Quellen
 
-Die folgenden Analysen beruhen auf einer Klassifikation der sog. "Referrers" lediglich im Web. 
+Die folgenden Analysen beruhen auf einer Klassifikation der sog. "Referrers" lediglich für die Plattform Web.
 
-WIP
+## Per Quelle und Abo-Status
+```{r}
+x = getQueryData(sqlString="
+  select
+      time_bin,
+      referrer_class,
+      subscriber_status,
+      device_type,
+      count(*) as n_visits
+  from chmedia.subs_session_first_page_jan22
+  where is_web
+  group by 1,2,3,4
+",force=runQueries)
+x$time = formatTime(x$time_bin)
+
+x2 = x %>% group_by(time,referrer_class,subscriber_status) %>% summarise(
+  n_visits = sum(n_visits)
+)
+
+ggplotly(
+  ggplot(x2,aes(
+      x=time,
+      y=n_visits,
+      color=referrer_class,
+      group=1))+
+    geom_line(stat="identity")+
+    scale_x_datetime(date_labels="%H:%M")+
+    facet_wrap(.~subscriber_status,scales = "free_y")+theme(
+      axis.text.x=element_text(angle=90)
+    )
+)
+```
+
+```{r}
+x3 = x2 %>% inner_join(
+  x2 %>% group_by(time,subscriber_status) %>% summarise(total_visits=sum(n_visits)),
+  by=c("time","subscriber_status")
+)
+
+x3$visits_share = x3$n_visits/x3$total_visits
+
+ggplotly(
+  ggplot(x3,aes(
+      x=time,
+      y=visits_share,
+      fill=referrer_class))+
+    geom_area(stat="identity")+
+    scale_x_datetime(date_labels="%H:%M")+
+    facet_wrap(.~subscriber_status,scales = "free_y")+theme(
+      axis.text.x=element_text(angle=90)
+    )
+)
+```
+
+## Per Quelle, Abo-Status & Gerättyp
+```{r}
+ggplotly(
+  ggplot(x,aes(
+      x=time,
+      y=n_visits,
+      color=referrer_class),
+      group=1)+
+    geom_line(stat="identity")+
+    scale_x_datetime(date_labels="%H:%M")+
+    facet_wrap(subscriber_status~device_type,scales = "free_y")+theme(
+      axis.text.x=element_text(angle=90)
+    )
+)
+```
+
+```{r}
+
+x2 = x %>% inner_join(
+  x %>% group_by(time,subscriber_status,device_type) %>% summarise(
+    total_visits = sum(n_visits)
+  ),
+  by=c("time","subscriber_status","device_type")
+) %>% transform(
+  visits_share = n_visits/total_visits
+)
+
+ggplotly(
+  ggplot(x2,aes(
+      x=time,
+      y=visits_share,
+      fill=referrer_class))+
+    geom_area(stat="identity")+
+    scale_x_datetime(date_labels="%H:%M")+
+    facet_wrap(subscriber_status~device_type,scales = "free_y")+theme(
+      axis.text.x=element_text(angle=90)
+    )
+)
+```

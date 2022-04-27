@@ -16,13 +16,13 @@ getDWHCon = function(){
   if(!is.null(con)){
     return(con)
   }
-  
+
   bigrquery::bq_auth(path="~/.bigquery/trim-mechanism-126723-70f52b319aa4.json")
   con <- dbConnect(
     bigrquery::bigquery(),
     project = "trim-mechanism-126723"
   )
-  
+
   return(con)
 }
 
@@ -163,3 +163,6 @@ installDependencies = function(){
   ),repos='https://stat.ethz.ch/CRAN/')
   devtools::install_github("wesm/feather/R")
 }
+
+knitr::opts_chunk$set("message"=F)
+knitr::opts_chunk$set("warning"=F)
